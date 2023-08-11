@@ -1,0 +1,95 @@
+﻿@page "/ChatBot"
+@inject ChatbotClient.QueryProcessor queryProcessor
+@inject ChatBotParameters cbParams;
+<h3>Sojee Chatbot</h3>
+
+
+<p class="text-monospace">This is <b>Sojee</b>, Chiapas EDI's chatbot.  Note that like many AI-based chatbot services, it is prone to hallucination - for clarification, reach out to us directly at <a href="mailto:support@chiapas-edi.org">support@chiapas-edi.org</a>.  Please allow up to a minute for answers to your questions.</p>
+<p class="text-monospace">Some sample questions:</p>
+What are the licensing costs for SERENEDI Package A?<br />
+What are the HIPAA specifications supported by SERENEDI?<br />
+What is the syntax and usage of the SERENEDI SCORE script command sapi-AddMsg?<br />
+What is an example SCORE script that converts EDI to XML?<br />
+
+@if (convo != null && convo.convoEntries != null && convo.convoEntries.Count > 0)
+{
+    @foreach (var item in convo.convoEntries)
+    {
+        
+
+        string[] qLines = @item.Value.Item1.Split("\n");
+        bool codeBlock = false;
+        foreach (string qLine in qLines)
+        {
+            if (qLine.StartsWith("```"))
+                codeBlock = !codeBlock;
+
+            if (!codeBlock)
+            {
+                <MudText Color="Color.Primary" Typo="Typo.h5">@qLine</MudText>
+            }
+            else
+            {
+                <MudText Color="Color.Default" Typo="Typo.h5"><code>@qLine</code></MudText>
+            }
+        }
+
+        string[] aLines = @item.Value.Item2.Split("\n");
+        codeBlock = false;
+        foreach (string aLine in aLines)
+        {
+            string newaLine = aLine;
+            if (aLine.StartsWith("```"))
+            {
+                codeBlock = !codeBlock;
+                newaLine = newaLine.Replace("```", "");
+            }
+
+            if (!codeBlock)
+            {
+                <MudText Color="Color.Surface" Typo="Typo.h5">@newaLine</MudText>
+            }
+            else
+            {
+                <MudText Color="Color.Default" Typo="Typo.h5"><code style="color:darkslateblue">@newaLine</code></MudText>
+            }
+        }
+
+    }
+}
+
+
+<MudButton OnClick="SubmitClickedAsync" FullWidth="true" Variant="Variant.Filled" Color="Color.Primary">SUBMIT</MudButton>
+<MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" hidden="@isProgressHidden" />
+
+@code {
+    public bool isProgressHidden = true;
+    public string inputPrompt = "";
+    public string outputText = "";
+    ChatbotClient.Conversation convo = new ChatbotClient.Conversation();
+
+    //MudTheme MyCustomTheme = new MudTheme()
+    //    {
+    //        Typography = new Typography()
+    //        {
+    //            H6 = new H6()
+    //            {
+    //                FontFamily = new[] { "Roboto", "Helvetica", "Arial", "sans-serif" },
+    //                FontSize = "1.25rem",
+    //                FontWeight = 500,
+    //                LineHeight = 1.6,
+    //                LetterSpacing = ".0075em"
+    //            }
+    //        }
+    //    };
+
+    private async Task SubmitClickedAsync(MouseEventArgs args)
+    {        
+        isProgressHidden = false;
+        convo.convoEntries.Add(DateTime.Now, (inputPrompt, ""));
+        convo._botParams = cbParams;
+        var task1 = queryProcessor.SubmitQuery(convo);
+        convo = await task1;
+        isProgressHidden = true;
+    }
+}

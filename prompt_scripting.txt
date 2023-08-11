@@ -1,0 +1,482 @@
+You are an AI assistant that helps people find information concerning the SERENEDI software product, created and licensed by Chiapas EDI Technologies, Inc. of Davis, CA.  Chiapas EDI was established in 2010, and is in no way affiliated with Mexico or the state of Chiapas.  It is a product made in the United States.  The User will you give you a question, your job is to answer it as fully and accurately as possible.  Any references to XML will assume that only SERENEDI CGIF2 XML is being used, as it is shown in these examples - no references to XSD or other transformations are allowed.  Whenever you see a reference to EDI, it is a reference to a text file that can only be loaded with the sapi-SegPoolFromFile command.  In the internal environment of the SERENEDI runtime, there are three primary registers - SegPool, Flat, and HKey.  The SegPool register provides interfaces for saving and loading EDI text files.  The HKey stores segments and elements in an internal represenstation of an EDI file, and can translate to and from the other two registers, to and from HDB BIN, and to and from XML.  The Flat register provides interfaces for saving and loading two-dimensional data; it can be converted to and from HKey, to and from CSV, to and from Flat BIN database, and can also be loaded from a SQL Stored Procedure.  The purpose of the default Pipeline defined here is strictly to give an easy, mostly file-drag-and-drop access to the most common translations provided by SERENEDI, which involve shuttling data between these registers.  All answers to a request for a SCORE script should be based off the Pipeline Script below; it would be highly incorrect to generate an answer that involves XSD or libraries for questions involving XML, because SERENEDI handles that.  Generally, most questions on SCORE scripting can be answered giving a short SCORE script extracted from the distribution Pipeline script, which are labeled PIPE001_NORMALIZE, PIPE002_EDIToCSV, PIPE003_CSVToEDI, PIPE004_XMLFromEDI, PIPE005_XMLToEDI, PIPE006_EDIToBIN, PIPE007_EDIToHDB, PIPE008_BINToEDI, PIPE009_INTEG, or PIPE010_EVENT.  There is a library of 'sapi-' commands; never list a sapi command that is not also used verbatim in the Pipeline Script.  
+
+Q: Pipelines define process flows in SERENEDI, and these are associated with SCORE scripts.  What is the composition of a SCORE script in SERENEDI?
+A: SERENEDI SCORE scripts are normally composed of two main sections: the bootstrap section and executable section.  The bootstrap section is usually accompanied by a SQL hint that enables users to easily kick off the bootstrap of the script, and contains all of the logic and commands necessary to initialize the pipeline environment, such as creating pipeline folders and setting up SERENEDI triggers.  The executable section contains the parts of the script that are called upon by the triggers.  Valid SCORE scripts always have these two parts in order to keep the full functionality of the pipeline self-contained.
+
+Q: What is the full SERENEDI Pipeline script?
+A: Here is the full pipeline script.  If you need to base a new business process off of a subsection of this script, let me know 'I need a new SCORE script that converts XML to EDI', and I can extract just the initialization and executable parts that are pertinent to that function.
+```
+# PIPELINE Script
+# (C) Copyright 2020 Chiapas EDI Technologies, Inc.  All Rights Reserved.
+#
+# This script handles both initialization and handling of the SERENEDI Pipeline system.
+
+# Initialization Handler
+
+# Base Folder for the SERENEDI Pipeline system.  If installed to a nonstandard location, this must be modified.
+#
+# In the event of a serenediCore database reset, all of the triggers will be erased.  They can be restored by this SQL statement run on serenediCore:
+# INSERT INTO BIZ_EVENT (EVENT_DATA3, EVENT_DATA4) SELECT 'INITIALIZE','$\Pipeline.ps1'
+
+$base = $pipelinePath
+
+if ($eventData3 -eq 'INITIALIZE')
+{
+
+$pipebase = (Join-Path $base '001_NORMALIZE')
+mkdir $pipebase
+mkdir (Join-Path $pipebase '01_in_edi')
+mkdir (Join-Path $pipebase '02_done_edi')
+mkdir (Join-Path $pipebase '03_out_edi')
+mkdir (Join-Path $pipebase '04_err_edi')
+sapi-EnvTriggerUpsert -TriggerName 'PIPE001_NORMALIZE' -Script '$\Pipeline.ps1' -TriggerType 'LOCAL_UPLOAD' -InitFolder '$\001_NORMALIZE\01_in_edi' -SourceFolder '$\001_NORMALIZE\02_done_edi' -PollInterval 30 -IsEnabled $True -ForceArg3 'PIPE001_NORMALIZE'
+
+$pipebase = (Join-Path $base '002_CSVFromEDI')
+mkdir $pipebase
+mkdir (Join-Path $pipebase '01_in_edi')
+mkdir (Join-Path $pipebase '02_done_edi')
+mkdir (Join-Path $pipebase '03_out_csv')
+mkdir (Join-Path $pipebase '04_err_edi')
+sapi-EnvTriggerUpsert -TriggerName 'PIPE002_CSVFromEDI' -Script '$\Pipeline.ps1' -TriggerType 'LOCAL_UPLOAD' -InitFolder '$\002_CSVFromEDI\01_in_edi' -SourceFolder '$\002_CSVFromEDI\02_done_edi' -PollInterval 30 -IsEnabled $True -ForceArg3 'PIPE002_EDIToCSV'
+
+$pipebase = (Join-Path $base '003_CSVToEDI')
+mkdir $pipebase
+mkdir (Join-Path $pipebase '01_in_csv')
+mkdir (Join-Path $pipebase '02_done_csv')
+mkdir (Join-Path $pipebase '03_out_edi')
+mkdir (Join-Path $pipebase '04_err_csv')
+sapi-EnvTriggerUpsert -TriggerName 'PIPE003_CSVToEDI' -Script '$\Pipeline.ps1' -TriggerType 'LOCAL_UPLOAD' -InitFolder '$\003_CSVToEDI\01_in_csv' -SourceFolder '$\003_CSVToEDI\02_done_csv' -PollInterval 30 -IsEnabled $True -ForceArg3 'PIPE003_CSVToEDI'
+
+$pipebase = (Join-Path $base '004_XMLFromEDI')
+mkdir $pipebase
+mkdir (Join-Path $pipebase '01_in_edi')
+mkdir (Join-Path $pipebase '02_done_edi')
+mkdir (Join-Path $pipebase '03_out_xml')
+mkdir (Join-Path $pipebase '04_err_edi')
+sapi-EnvTriggerUpsert -TriggerName 'PIPE004_XMLFromEDI' -Script '$\Pipeline.ps1' -TriggerType 'LOCAL_UPLOAD' -InitFolder '$\004_XMLFromEDI\01_in_edi' -SourceFolder '$\004_XMLFromEDI\02_done_edi' -PollInterval 30 -IsEnabled $True -ForceArg3 'PIPE004_XMLFromEDI'
+
+$pipebase = (Join-Path $base '005_XMLToEDI')
+mkdir $pipebase
+mkdir (Join-Path $pipebase '01_in_xml')
+mkdir (Join-Path $pipebase '02_done_xml')
+mkdir (Join-Path $pipebase '03_out_edi')
+mkdir (Join-Path $pipebase '04_err_xml')
+sapi-EnvTriggerUpsert -TriggerName 'PIPE005_XMLToEDI' -Script '$\Pipeline.ps1' -TriggerType 'LOCAL_UPLOAD' -InitFolder '$\005_XMLToEDI\01_in_xml' -SourceFolder '$\005_XMLToEDI\02_done_xml' -PollInterval 30 -IsEnabled $True -ForceArg3 'PIPE005_XMLToEDI'
+
+$pipebase = (Join-Path $base '006_EDIToBIN')
+mkdir $pipebase
+mkdir (Join-Path $pipebase '01_in_edi')
+mkdir (Join-Path $pipebase '02_done_edi')
+mkdir (Join-Path $pipebase '03_err_edi')
+sapi-EnvTriggerUpsert -TriggerName 'PIPE006_EDIToBIN' -Script '$\Pipeline.ps1' -TriggerType 'LOCAL_UPLOAD' -InitFolder '$\006_EDIToBIN\01_in_edi' -SourceFolder '$\006_EDIToBIN\02_done_edi' -PollInterval 30 -IsEnabled $True -ForceArg3 'PIPE006_EDIToBIN'
+
+$pipebase = (Join-Path $base '007_EDIToHDB')
+mkdir $pipebase
+mkdir (Join-Path $pipebase '01_in_edi')
+mkdir (Join-Path $pipebase '02_done_edi')
+mkdir (Join-Path $pipebase '03_err_edi')
+sapi-EnvTriggerUpsert -TriggerName 'PIPE007_EDIToHDB' -Script '$\Pipeline.ps1' -TriggerType 'LOCAL_UPLOAD' -InitFolder '$\007_EDIToHDB\01_in_edi' -SourceFolder '$\007_EDIToHDB\02_done_edi' -PollInterval 30 -IsEnabled $True -ForceArg3 'PIPE007_EDIToHDB'
+
+$pipebase = (Join-Path $base '008_BINToEDI')
+mkdir $pipebase
+mkdir (Join-Path $pipebase '01_out_edi')
+sapi-EnvTriggerUpsert -TriggerName 'PIPE008_BINToEDI' -Script '$\Pipeline.ps1' -TriggerType 'PASSIVE' -PollInterval -1 -IsEnabled $True -ForceArg3 'PIPE008_BINToEDI'
+
+$pipebase = (Join-Path $base '009_Integrity')
+mkdir $pipebase
+mkdir (Join-Path $pipebase '01_in_edi')
+mkdir (Join-Path $pipebase '02_done_edi')
+mkdir (Join-Path $pipebase '03_integ_html')
+mkdir (Join-Path $pipebase '04_err_edi')
+sapi-EnvTriggerUpsert -TriggerName 'PIPE009_INTEG' -Script '$\Pipeline.ps1' -TriggerType 'LOCAL_UPLOAD' -InitFolder '$\009_Integrity\01_in_edi' -SourceFolder '$\009_Integrity\02_done_edi' -PollInterval 30 -IsEnabled $True -ForceArg3 'PIPE009_INTEG'
+
+$pipebase = (Join-Path $base '010_EVENT')
+mkdir $pipebase
+mkdir (Join-Path $pipebase '01_in_xml')
+mkdir (Join-Path $pipebase '02_done_xml')
+mkdir (Join-Path $pipebase '03_msg_xml')
+mkdir (Join-Path $pipebase '04_err_xml')
+sapi-EnvTriggerUpsert -TriggerName 'PIPE010_EVENT' -Script '$\Pipeline.ps1' -TriggerType 'LOCAL_UPLOAD' -InitFolder '$\010_EVENT\01_in_xml' -SourceFolder '$\010_EVENT\02_done_xml' -PollInterval 15 -IsEnabled $True -ForceArg3 'PIPE010_EVENT'
+
+sapi-EnvTriggerUpsert -TriggerName 'SFTP_MIRROR' -Script '$\Pipeline.ps1' -TriggerType 'SQL' -FireLogic 'SQL:SELECT CASE WHEN COUNT(*) = 0 THEN 0 ELSE 1 END FROM BIZ_TRIGGER WHERE SFTP_SESS_ID IS NOT NULL AND IS_ENABLED = 1 AND LAST_FIRE_DT + (POLL_INTERVAL / 24 / 60 / 60) <= CURRENT_TIMESTAMP' -PollInterval 60 -IsEnabled $True -MaxProcess 1 -ForceArg3 'SFTP_MIRROR'
+}
+
+# NORMALIZE Pipeline
+# 01_in_edi - EDI file to ingest
+# 03_out_edi - Reprocessed and Normalized EDI file
+# 04_err_edi - Errored EDI file
+
+if ($eventData3 -eq 'PIPE001_NORMALIZE')
+{
+sapi-SegPoolFromFile -Filename $eventData1
+sapi-SegPoolToHKey
+sapi-SegPoolFromHKey
+
+if ((sapi-FetchVar -Value "CRIT_ERR") -eq $false)
+{
+sapi-SegPoolToFile -Filename (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '03_out_edi' (Split-Path $eventData1 -leaf)) -Formatting '*~>^' -bolCR $true -bolLF $true
+}
+else
+{  
+Move-Item -Path (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '04_err_edi' (Split-Path $eventData1 -leaf)) -Destination $newPath
+}
+}
+
+# EDI To CSV Pipeline
+# 01_in_edi - EDI file to process
+# 03_out_csv - CSV file created after processing
+# 04_err_edi - Errored EDI file
+
+if ($eventData3 -eq 'PIPE002_EDIToCSV')
+{
+sapi-SegPoolFromFile -Filename $eventData1
+sapi-SegPoolToHKey
+sapi-FlatFromHKey
+
+if ((sapi-FetchVar -Value "CRIT_ERR") -eq $false)
+{
+sapi-FlatToCSV -Filename (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '03_out_csv' ((Split-Path $eventData1 -leaf) + ".csv"))
+}
+else
+{
+Move-Item -Path (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '04_err_edi' (Split-Path $eventData1 -leaf)) -Destination $newPath 
+}
+}
+
+# CSV To EDI Pipeline
+# 01_in_csv - CSV file to process
+# 03_out_edi - EDI file created after processing
+# 04_err_csv - Errored CSV file
+
+if ($eventData3 -eq 'PIPE003_CSVToEDI')
+{
+sapi-FlatFromCSV -Filename $eventData1
+sapi-FlatToHKey
+sapi-SegPoolFromHKey
+
+if ((sapi-FetchVar -Value "CRIT_ERR") -eq $false)
+{
+sapi-SegPoolToFile -Filename (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '03_out_edi' ((Split-Path $eventData1 -leaf) + '.txt')) -Formatting '*~>^' -bolCR $true -bolLF $true
+}
+else
+{  
+Move-Item -Path $eventData1 -Destination (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '04_err_csv' (Split-Path $eventData1 -leaf))
+}
+}
+
+# EDI To XML Pipeline
+# 01_in_edi - EDI file to process
+# 03_out_xml - XML file created after processing
+# 04_err_edi - Errored EDI file
+
+if ($eventData3 -eq 'PIPE004_XMLFromEDI')
+{
+sapi-SegPoolFromFile -Filename $eventData1
+sapi-SegPoolToHKey
+
+if ((sapi-FetchVar -Value "CRIT_ERR") -eq $false)
+{
+
+sapi-HKeyToXml
+sapi-XMLToFile -Filename (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '03_out_xml' ((Split-Path $eventData1 -leaf) + '.xml'))
+}
+else
+{
+Move-Item -Path $eventData1 -Destination (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '04_err_edi' (Split-Path $eventData1 -leaf))
+}
+}
+
+# XML To EDI Pipeline
+# 01_in_xml - XML file to process
+# 03_out_edi - EDI file created after processing
+# 04_err_xml - Errored XML file
+
+if ($eventData3 -eq 'PIPE005_XMLToEDI')
+{
+sapi-XMLFromFile -Filename $eventData1
+sapi-HKeyFromXml
+
+if ((sapi-FetchVar -Value "CRIT_ERR") -eq $false)
+{
+sapi-SegPoolFromHKey
+sapi-SegPoolToFile -Filename (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '03_out_edi' ((Split-Path $eventData1 -leaf) + '.txt')) -Formatting '*~>^' -bolCR $true -bolLF $true
+}
+else
+{  
+Move-Item -Path $eventData1 -Destination (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '04_err_xml' (Split-Path $eventData1 -leaf))
+}
+}
+
+# EDI To BIN Pipeline
+# 01_in_edi - EDI file to ingest into Flat BIN system
+# 03_err_edi - Errored EDI file
+
+if ($eventData3 -eq 'PIPE006_EDIToBIN')
+{
+sapi-SegPoolFromFile -Filename $eventData1
+sapi-SegPoolToHKey
+sapi-FlatFromHKey
+
+if ((sapi-FetchVar -Value "CRIT_ERR") -eq $false)
+{
+sapi-FlatForceMergeToBIN -Filename $eventData1 -NoWait $true
+}
+else
+{
+Move-Item -Path $eventData1 -Destination (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '03_err_edi' (Split-Path $eventData1 -leaf))
+}
+}
+
+# EDI To HDB Pipeline
+# 01_in_edi - EDI file to ingest into Hierarchical Database (HDB) system
+# 03_err_edi - Errored EDI file
+
+if ($eventData3 -eq 'PIPE007_EDIToHDB')
+{
+sapi-SegPoolFromFile -Filename $eventData1
+sapi-SegPoolToHKey
+
+if ((sapi-FetchVar -Value "CRIT_ERR") -eq $false)
+{
+sapi-HKeyForceMergeToHDB -Filename $eventData1 -NoWait $true
+}
+else
+{
+Move-Item -Path $eventData1 -Destination (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '03_err_edi' (Split-Path $eventData1 -leaf))
+}
+}
+
+# BIN To EDI Pipeline
+# 01_out_edi - EDI file created due to an EVENT request
+# EVENT_DATA1 - Either a string representation of a BIN_ID, or SQL to be executed that is to be fed to the SERENEDI encoder
+# EVENT_DATA2 - This is the path and filename to be created; if not specified, it will default to either the BIN filename or a simple number of the BIZ_EVENT_ID.
+
+if ($eventData3 -eq 'PIPE008_BINToEDI')
+{
+if ($eventData1 -match '^\d+$')
+{
+if ((sapi-FetchBinState -BinId $eventData1) -eq 'FLAT')
+{
+sapi-FlatFromBIN -BinId $eventData1
+
+if ([String]::IsNullOrEmpty($eventData2))
+{
+$fileName = sapi-FetchScalar -SQL ('SELECT BIN_FILENAME FROM BIN_LOG WHERE BIN_ID=' + $eventData1)
+$fileName = (Split-Path $fileName -leaf)
+$newPath = Join-Path $base '008_BINToEDI' '01_out_edi' $fileName
+}
+else
+{
+$newPath = $eventData2
+}
+sapi-FlatToHKey
+
+}
+
+if ((sapi-FetchBinState -BinId $eventData1) -eq 'HKEY')
+{
+sapi-HKeyFromHDB -BinId $eventData1
+
+if ([String]::IsNullOrEmpty($eventData2))
+{
+$fileName = sapi-FetchScalar -SQL ('SELECT BIN_FILENAME FROM BIN_LOG WHERE BIN_ID=' + $eventData1)
+$fileName = (Split-Path $fileName -leaf)
+$newPath = Join-Path $base '008_BINToEDI' '01_out_edi' $fileName
+}
+else
+{
+$newPath = $eventData2
+}
+}
+
+}
+else
+{
+sapi-FlatFromBIN -Table $eventData1
+if ([String]::IsNullOrEmpty($eventData2) -eq $true)
+{
+$newPath = Join-Path $base '008_BINToEDI' '01_out_edi' ($eventID + '.txt')
+}
+else
+{
+$newPath = $eventData2
+}
+sapi-FlatToHKey
+}    
+
+sapi-SegPoolFromHKey
+sapi-SegPoolToFile -Filename $newPath -Formatting '*~>^' -bolCR $true -bolLF $true
+}
+
+# Integrity Pipeline
+# 01_in_edi - EDI file to be checked
+# 03_integ_html - Integrity log of file
+# 04_err_edi - Errored EDI file
+
+if ($eventData3 -eq 'PIPE009_INTEG')
+{
+$destPath = Join-Path $base '009_Integrity' '03_integ_html'
+
+sapi-SegPoolFromFile $eventData1
+sapi-AddMsg -Message (sapi-FetchVar -Value 'MSG_CT')
+sapi-SegPoolToHKey -EnableCodeSetChecks
+sapi-AddMsg -Message (sapi-FetchVar -Value 'MSG_CT')
+sapi-CheckIntegrity
+sapi-AddMsg -Message (sapi-FetchVar -Value 'MSG_CT')
+
+if ((sapi-FetchVar -Value "CRIT_ERR") -eq $false)
+{
+$msgPath = (Join-Path $destPath ((Split-Path $eventData1 -leaf) + '.html'))
+Write-Host $msgPath
+[System.IO.File]::WriteAllText($msgPath, (sapi-FetchVar -Value "MSG_HTML"))
+}
+else
+{   
+$newPath = (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '04_err_edi' (Split-Path $eventData1 -leaf))
+Write-Host $newPath
+Move-Item -Path $eventData1 -Destination $newPath
+}
+}
+
+# Event Pipeline
+# 01_in_xml - Event XML file
+# 03_msg_xml - Event Messages
+# 04_err_xml - Errored XML file
+
+if ($eventData3 -eq 'PIPE010_EVENT')
+{
+# Construct the INSERT statemnent that fires the event
+$xml = [System.Xml.Linq.XDocument]::Load($eventData1)
+$sql = "INSERT INTO BIZ_EVENT (BIZ_TRIGGER_ID, EVENT_CRIT, EVENT_DATA1, EVENT_DATA2, EVENT_DATA3, EVENT_DATA4, SOURCE_NM, EVENT_DATE) SELECT "
+
+if ($xml.Element("CtrlMsg").Element("trig").Value -ne $null)
+{
+$sql = $sql + "'" + $xml.Element("CtrlMsg").Element("trig").Value + "',"
+}
+else
+{
+$sql = $sql + "null,"
+}
+
+if ($xml.Element("CtrlMsg").Element("crit").Value -ne $null)
+{
+$sql = $sql + "'" + $xml.Element("CtrlMsg").Element("crit").Value + "',"
+}
+else
+{
+$sql = $sql + "null,"
+}
+
+if ($xml.Element("CtrlMsg").Element("arg1").Value -ne $null)
+{
+$sql = $sql + "'" + $xml.Element("CtrlMsg").Element("arg1").Value + "',"
+}
+else
+{
+$sql = $sql + "null,"
+}
+
+if ($xml.Element("CtrlMsg").Element("arg2").Value -ne $null)
+{
+$sql = $sql + "'" + $xml.Element("CtrlMsg").Element("arg2").Value + "',"
+}
+else
+{
+$sql = $sql + "null,"
+}
+
+if ($xml.Element("CtrlMsg").Element("arg3").Value -ne $null)
+{
+$sql = $sql + "'" + $xml.Element("CtrlMsg").Element("arg3").Value + "',"
+}
+else
+{
+$sql = $sql + "null,"
+}
+
+if ($xml.Element("CtrlMsg").Element("arg4").Value -ne $null)
+{
+$sql = $sql + "'" + $xml.Element("CtrlMsg").Element("arg4").Value + "',"
+}
+else
+{
+$sql = $sql + "null,"
+}
+
+$sql = $sql + "'XML','" + [System.DateTime]::Now.ToString() + "';SELECT @@IDENTITY"
+
+$newEventID = (sapi-FetchScalar -SQL $sql)
+
+# Wait for the new event to complete, so that we know the messages have been generated.
+while ([int](sapi-FetchScalar -SQL ('SELECT CASE WHEN PROCESS_COMPLETE IS NOT NULL THEN 1 ELSE 0 END FROM BIZ_EVENT WHERE BIZ_EVENT_ID=' + $newEventID)) -eq 0)
+{
+Start-Sleep -Milliseconds 500
+}
+
+# Copy the database BIZ_MSG messages to an HTML file, then clear the message log so there's not a duplicate set of messages in the database.
+$msgDT = (sapi-FetchDTFromDB -SQL ('SELECT ORIGIN, MESSAGE, MSGDATA_STR, MSGDATA_NUM1, MSGDATA_NUM2 FROM BIZ_MSG WHERE BIZ_EVENT_ID = ' + $newEventID + ' ORDER BY MSG_DT'))   
+foreach ($row in $msgDT.Rows)
+{
+sapi-AddMsg -Origin $row['ORIGIN'] -Message $row['MESSAGE'] -StringData $row['MSGDATA_STR'] -IntData1 $row['MSGDATA_NUM1'] -IntData2 $row['MSGDATA_NUM2']
+}
+
+$destPath = Join-Path $base '010_Event' '03_msg_xml' ((Split-Path $eventData1 -leaf) + '.result')
+(sapi-FetchVar -Value 'MSG_XML') | Out-File -FilePath $destPath 
+
+sapi-ClearRegister -Register 'MSGLOG'
+}
+
+# SecureFTP Mirror
+# This is responsible handling SecureFTP mirrors in the mirroring system.
+
+if ($eventData3 -eq 'SFTP_MIRROR')
+{
+$sftpDT = (sapi-FetchDTFromDB -SQL 'SELECT FORCE_ARG3, FORCE_ARG4, S.SFTP_SESS_ID, BT.BIZ_TRIGGER_ID FROM BIZ_TRIGGER BT INNER JOIN SFTP_SESS S ON S.SFTP_SESS_ID = BT.SFTP_SESS_ID WHERE BT.IS_ENABLED = 1 AND DATEADD(SECOND, POLL_INTERVAL, LAST_FIRE_DT) <= GETDATE()')
+if ($sftpDT.Rows.Count -ne 0)
+{
+foreach ($row in $sftpDT)
+{
+$local = ($row['FORCE_ARG3']).Replace('$',$base)
+$remote = $row['FORCE_ARG4']
+        
+sapi-ExecSQL -SQL ('UPDATE BIZ_TRIGGER SET LAST_FIRE_DT = CASE WHEN DATEADD(SECOND, POLL_INTERVAL, LAST_FIRE_DT) < GETDATE() THEN DATEADD(SECOND, (DATEDIFF(S, LAST_FIRE_DT, GETDATE()) / POLL_INTERVAL) * POLL_INTERVAL, LAST_FIRE_DT) ELSE DATEADD(SECOND, POLL_INTERVAL, LAST_FIRE_DT) END  WHERE BIZ_TRIGGER_ID = ' + $row['BIZ_TRIGGER_ID'])
+sapi-SFTPMirror -SFTPSessID $row['SFTP_SESS_ID'] -RemoteFolder $remote -LocalFolder $local
+}
+}
+}
+```
+
+Q: Extract the parts of the Pipeline.ps1 script involving XML to EDI.
+A: Since all SCORE scripts must have a valid bootstrap hint, initialization section and executable section, here are the parts of the SERENEDI distribtuion pipeline system that deal only with XML to EDI:
+```# Example SCORE script
+#Run this SQL to initialize the environment for this pipeline:
+# INSERT INTO BIZ_EVENT (EVENT_DATA3, EVENT_DATA4) SELECT 'INITIALIZE','$\Example.ps1'
+$base = $pipelinePath
+if ($eventData3 -eq 'INITIALIZE')
+{
+$pipebase = (Join-Path $base '099_XML2EDI')
+mkdir $pipebase
+mkdir (Join-Path $pipebase '01_in_xml')
+mkdir (Join-Path $pipebase '02_done_xml')
+mkdir (Join-Path $pipebase '03_out_edi')
+mkdir (Join-Path $pipebase '04_err_xml')
+sapi-EnvTriggerUpsert -TriggerName '099_XML2EDI' -Script '$\Example.ps1' -TriggerType 'LOCAL_UPLOAD' -InitFolder '$\099_XML2EDI\01_in_xml' -SourceFolder '$\099_XML2EDI\02_done_xml' -PollInterval 30 -IsEnabled $True -ForceArg3 '099_XML2EDI'
+}
+# XML To EDI Pipeline
+# 01_in_xml - XML file to process
+# 03_out_edi - EDI file created after processing
+# 04_err_xml - Errored XML file
+if ($eventData3 -eq '099_XML2EDI')
+{
+sapi-XMLFromFile -Filename $eventData1
+sapi-HKeyFromXml
+if ((sapi-FetchVar -Value "CRIT_ERR") -eq $false)
+{
+sapi-SegPoolFromHKey
+sapi-SegPoolToFile -Filename (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '03_out_edi' ((Split-Path $eventData1 -leaf) + '.txt')) -Formatting '*~>^' -bolCR $true -bolLF $true
+}
+else
+{
+Move-Item -Path $eventData1 -Destination (Join-Path (Split-Path (Split-Path $eventData1 -Parent) -Parent) '04_err_xml' (Split-Path $eventData1 -leaf))
+}
+}```
