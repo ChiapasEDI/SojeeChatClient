@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using System.Text;
 using static MudBlazor.CategoryTypes;
 using System.Xml.Serialization;
-
+using Serilog;
 
 namespace SojeeChat
 {
@@ -20,14 +20,10 @@ namespace SojeeChat
         //internal static string questionPrompt = "Q: ";
         //internal static string answerPrompt = "A: ";
 
-        // Construct for Chatbotclient - pass in string path to setup class
-        public ChatbotClient(string baseParams)
-        {
-
-        }
-
         public class QueryProcessor
         {
+            public ChatBotParameters cbParams;
+
             private readonly Queue<QueryItem> queryQueue = new Queue<QueryItem>();
             private readonly Dictionary<Guid, TaskCompletionSource<Conversation>> queryCompletionSources = new Dictionary<Guid, TaskCompletionSource<Conversation>>();
             private readonly Timer timer;
@@ -37,6 +33,7 @@ namespace SojeeChat
             {
                 // The timer will tick every 100 milliseconds to process items from the queue.
                 timer = new Timer(ProcessQueue, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(100));
+                cbParams = ChatBotParameters.LoadFromDisk();
             }
 
             // Define a class to represent query items.
@@ -99,7 +96,7 @@ namespace SojeeChat
         public class Conversation
         {
             // Unique ID for this conversation
-            public Guid Id = new Guid();
+            public Guid Id = Guid.NewGuid();
             public DateTime initialQuestion = DateTime.Now;
             public ChatBotParameters _botParams;
 
@@ -130,11 +127,15 @@ namespace SojeeChat
 
                 // Don't record an off-topic Q/A pair.
                 if (!response.Contains("Sorry"))
-                    convoEntries.Add(oldTS, new(newQuery, response)); ;
-
-                if (DateTime.Now.Subtract(this.initialQuestion).Minutes > 5)
                 {
-                    convoEntries.Add(DateTime.Now, new("", "Sorry, but each conversation is limited to five minutes."));
+                    Console.WriteLine($"Conversation:{this.Id} Q:{newQuery} A:{response}");
+                    Log.Information($"Conversation:{this.Id} Q:{newQuery} A:{response}");
+                    convoEntries.Add(oldTS, new(newQuery, response)); ;
+                }
+                else
+                {
+                    Console.WriteLine($"Conversation:{this.Id} Q:{newQuery}");
+                    Log.Information($"Conversation:{this.Id} Q:{newQuery}");
                 }
 
                 return response;
@@ -142,7 +143,7 @@ namespace SojeeChat
 
         }
 
-        private readonly static string apiUrl = "http://192.168.1.120:5000/api/v1/generate"; // Replace this with your API URL
+        //private readonly static string apiUrl = "http://96.86.129.154:5000/api/v1/generate"; // Replace this with your API URL
 
         public static async Task<string> GetResponseFromApi(string Prompt, ChatBotParameters cbParams)
         {
@@ -157,7 +158,7 @@ namespace SojeeChat
                         max_new_tokens = 700,
                         preset = "None",
                         do_sample = false,
-                        temperature = 0.0001,
+                        temperature = 0.1,
                         top_p = .1,
                         top_k = 40,
                         typical_p = 1,
@@ -189,8 +190,7 @@ namespace SojeeChat
 
                     // Send the POST request to the API
                     client.Timeout = new TimeSpan(0, 3, 0);
-                    HttpResponseMessage response = await client.PostAsync(apiUrl, jsonContent);
-
+                    HttpResponseMessage response = await client.PostAsync(cbParams.aiapiUrl, jsonContent);
                     // Check if the request was successful
                     if (response.IsSuccessStatusCode)
                     {
@@ -228,7 +228,7 @@ namespace SojeeChat
             // Sample question
             string prompt2 = initialQuestion + "\nCLASSIFICATION:";
 
-            string initialText = (File.ReadAllText(@$"{AppDomain.CurrentDomain.BaseDirectory}\prompt_initial.txt"));
+            string initialText = (File.ReadAllText(Path.Join(AppDomain.CurrentDomain.BaseDirectory,"prompt_initial.txt")));
             // Get the response from the API
             string response = await GetResponseFromApi(initialText + prompt2, cbParams);
 
@@ -249,7 +249,7 @@ namespace SojeeChat
                 }
             }
             else
-                return "Sorry, but I am limited to discussing about topics related to Chiapas EDI Technologies and its products.";
+                return cbParams.emptyResponse;
 
             //Console.WriteLine($"Category: {actualResponse}");
 
@@ -263,30 +263,12 @@ namespace SojeeChat
             if (actualResponse.Contains(' '))
                 actualResponse = actualResponse.Split(' ')[0];
 
-            if (cbParams.dctTopics.ContainsKey(actualResponse))
+            if (cbParams.dctTopics.ContainsKey(actualResponse.ToUpper()))
             {
-                response2  = await GetResponseFromApi(cbParams.dctTopics[actualResponse] + initialQuestion + $"\n{cbParams.answerPrompt}", cbParams);
+                response2  = await GetResponseFromApi(cbParams.dctTopics[actualResponse.ToUpper()] + initialQuestion + $"\n{cbParams.answerPrompt}", cbParams);
             }
             else
                 return cbParams.emptyResponse;
-
-            //switch (actualResponse)
-            //{
-            //    case "BUSINESS":
-            //        response2 = await GetResponseFromApi(File.ReadAllText(@$"{AppDomain.CurrentDomain.BaseDirectory}\prompt_business.txt") + initialQuestion + $"\n{Program.baseConfig.answerPrompt}");
-            //        break;
-            //    case "AUTOMATION":
-            //        response2 = await GetResponseFromApi(File.ReadAllText(@$"{AppDomain.CurrentDomain.BaseDirectory}\prompt_automation.txt") + initialQuestion + $"\n{Program.baseConfig.answerPrompt}");
-            //        break;
-            //    case "SCRIPTING":
-            //        response2 = await GetResponseFromApi(File.ReadAllText(@$"{AppDomain.CurrentDomain.BaseDirectory}\prompt_scripting.txt") + initialQuestion + $"\n{Program.baseConfig.answerPrompt}");
-            //        break;
-            //    case "REFERENCE":
-            //        response2 = await GetResponseFromApi(File.ReadAllText(@$"{AppDomain.CurrentDomain.BaseDirectory}\prompt_reference.txt") + initialQuestion + $"\n{Program.baseConfig.answerPrompt}");
-            //        break;
-            //    default:
-            //        return Program.baseConfig.emptyResponse;
-            //}
 
             if (response2 != "")
             {
@@ -300,7 +282,7 @@ namespace SojeeChat
                 {
                     actualResponse2 = "";
                 }
-
+                
                 return actualResponse2;
                 //Console.WriteLine($"Response: {actualResponse2}");
             }

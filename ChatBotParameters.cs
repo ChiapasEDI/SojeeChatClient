@@ -16,7 +16,7 @@ namespace SojeeChat
         [NonSerialized]
         public Dictionary<string, string> dctTopics = new Dictionary<string, string>();
 
-        public string basePath { get; set; } = "";
+        public string aiapiUrl { get; set; } = "";
 
         public static string ConfigPath
         {
@@ -42,7 +42,7 @@ namespace SojeeChat
                 {
                     string topicFile = Path.Join(Path.GetDirectoryName(ConfigPath), "prompt_" + topic + ".txt");
                     if (File.Exists(topicFile))
-                        dctTopics[topic] = File.ReadAllText(topicFile);
+                        dctTopics[topic.ToUpper()] = File.ReadAllText(topicFile);
                 }
             }
         }

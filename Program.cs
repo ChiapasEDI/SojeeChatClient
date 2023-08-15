@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor.Services;
+using Serilog;
 using System.Reflection.PortableExecutable;
 using static SojeeChat.ChatbotClient;
+using Serilog.Sinks.File;
 
 // TODO: 1. Add spinning indicator to indicate when a response is pending - done
 //       2. Add some introductory text and some sample questions. - done
@@ -20,14 +22,20 @@ namespace SojeeChat
     {
         public static void Main(string[] args)
         {
+
+            Log.Logger = new LoggerConfiguration()
+                .WriteTo.File("log-.txt", rollingInterval: RollingInterval.Day)
+                .CreateLogger();
+
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
             builder.Services.AddRazorPages();
             builder.Services.AddServerSideBlazor();
-            builder.Services.AddSingleton<ChatBotParameters>();
             builder.Services.AddMudServices();
             builder.Services.AddSingleton<QueryProcessor>();
+            
+            
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -41,12 +49,10 @@ namespace SojeeChat
             //app.UseHttpsRedirection();
 
             app.UseStaticFiles();
-
             app.UseRouting(); 
-
             app.MapBlazorHub();
             app.MapFallbackToPage("/_Host");
-
+            
             app.Run();
         }
     }

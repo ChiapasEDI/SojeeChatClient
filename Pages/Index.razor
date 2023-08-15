@@ -1,9 +1,86 @@
 ﻿@page "/"
+@inject ChatbotClient.QueryProcessor queryProcessor
+<div class="mud-theme-info py-4 px-6 mx-4 rounded-xl">
+    <MudText Align="Align.Left">
+        This is <b>Sojee</b>, Chiapas EDI's AI chatbot.  Please do not rely on the output for any purpose as it is prone to hallucinnation.
+        For clarification, reach out to us directly at <a href="mailto:support@chiapas-edi.org">support@chiapas-edi.org</a>, or copy your Email address in a question.  Please allow Sojee up to a minute for answers to your questions.<br />
+        <u>Some sample questions</u>:<br />
+        1. What are the licensing costs for SERENEDI Package A?<br />
+        2. What are the HIPAA specifications supported by SERENEDI?<br />
+        3. What is the syntax and usage of the SERENEDI SCORE script command sapi-AddMsg?<br />
+        4. What is an example SCORE script that converts EDI to XML?<br />
+    </MudText>
+</div>
 
-<PageTitle>Index</PageTitle>
+@if (convo != null && convo.convoEntries != null && convo.convoEntries.Count > 0)
+{
+    @foreach (var item in convo.convoEntries)
+    {
+        <MudText Color="Color.Dark">@item.Key.ToString("[HH:mm:ss]")</MudText>
+        string[] qLines = @item.Value.Item1.Split("\n");
+        bool codeBlock = false;
+        foreach (string qLine in qLines)
+        {
+            if (qLine.StartsWith("```"))
+                codeBlock = !codeBlock;
 
-<h1>Hello, world!</h1>
+            if (!codeBlock)
+            {
+                <MudText Color="Color.Primary" Typo="Typo.h5">@qLine</MudText>
+            }
+            else
+            {
+                <MudText Color="Color.Default" Typo="Typo.h5"><code>@qLine</code></MudText>
+            }
+        }
 
-Welcome to your new app.
+        string[] aLines = @item.Value.Item2.Split("\n");
+        codeBlock = false;
+        foreach (string aLine in aLines)
+        {
+            string newaLine = aLine;
+            if (aLine.StartsWith("```"))
+            {
+                codeBlock = !codeBlock;
+                newaLine = newaLine.Replace("```", "");
+            }
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+            if (!codeBlock)
+            {
+                <MudText Color="Color.Surface" Typo="Typo.h5">@newaLine</MudText>
+            }
+            else
+            {
+                <MudText Color="Color.Default" Typo="Typo.h5"><code style="color:darkslateblue">@newaLine</code></MudText>
+            }
+        }
+    }
+}
+
+@if (isProgressHidden)
+{
+    <div class="py-4 px-6 mx-4 rounded-xl">
+        <MudTextField T="string" @bind-Text="@inputPrompt" />
+    </div>
+}
+
+<MudButton OnClick="SubmitClickedAsync" FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" hidden="@(!isProgressHidden)">SUBMIT</MudButton>
+<MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" hidden="@isProgressHidden" />
+
+@code {
+    public bool isProgressHidden = true;    
+    public string inputPrompt = "";
+    public string outputText = "";
+    ChatbotClient.Conversation convo = new ChatbotClient.Conversation();
+
+    private async Task SubmitClickedAsync(MouseEventArgs args)
+    {
+        isProgressHidden = false;
+        convo.convoEntries.Add(DateTime.Now, (inputPrompt, ""));
+        convo._botParams = ChatBotParameters.LoadFromDisk();
+        var task1 = queryProcessor.SubmitQuery(convo);
+        convo = await task1;
+        isProgressHidden = true;
+    }
+
+}
