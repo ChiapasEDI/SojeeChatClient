@@ -8,10 +8,6 @@
 
   <ItemGroup>
     <None Remove="log-20230821.txt" />
-    <None Remove="prompt_automation.txt" />
-    <None Remove="prompt_business.txt" />
-    <None Remove="prompt_initial.txt" />
-    <None Remove="prompt_reference.txt" />
     <None Remove="prompt_scripting.txt" />
   </ItemGroup>
 
@@ -19,6 +15,21 @@
     <PackageReference Include="MudBlazor" Version="6.7.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="prompt_automation.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="prompt_business.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="prompt_initial.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="prompt_reference.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
