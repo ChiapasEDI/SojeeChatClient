@@ -16,10 +16,6 @@ namespace SojeeChat
 {
     public class ChatbotClient
     {
-        // Model Specific prompts
-        //internal static string questionPrompt = "Q: ";
-        //internal static string answerPrompt = "A: ";
-
         public class QueryProcessor
         {
             public ChatBotParameters cbParams;
@@ -92,7 +88,7 @@ namespace SojeeChat
 
         // SOJEE Conversation
         // 
-        // This class is instanced when a new conversation session is started from the SOJEE chatbot interface.  It times out after five minutes.
+        // This class is instanced when a new conversation session is started from the SOJEE chatbot interface.
         public class Conversation
         {
             // Unique ID for this conversation
@@ -128,13 +124,13 @@ namespace SojeeChat
                 // Don't record an off-topic Q/A pair.
                 if (!response.Contains("Sorry"))
                 {
-                    Console.WriteLine($"Conversation:{this.Id} Q:{newQuery} A:{response}");
+                    Console.WriteLine($"Conversation:{DateTime.Now.ToShortTimeString}/{this.Id} Q:{newQuery} A:{response}");
                     Log.Information($"Conversation:{this.Id} Q:{newQuery} A:{response}");
                     convoEntries.Add(oldTS, new(newQuery, response)); ;
                 }
                 else
                 {
-                    Console.WriteLine($"Conversation:{this.Id} Q:{newQuery}");
+                    Console.WriteLine($"Conversation:{DateTime.Now.ToShortTimeString}/{this.Id} Q:{newQuery}");
                     Log.Information($"Conversation:{this.Id} Q:{newQuery}");
                 }
 
@@ -143,51 +139,50 @@ namespace SojeeChat
 
         }
 
-        //private readonly static string apiUrl = "http://96.86.129.154:5000/api/v1/generate"; // Replace this with your API URL
-
-        public static async Task<string> GetResponseFromApi(string Prompt, ChatBotParameters cbParams)
+        public static async Task<string> GetResponseFromApi(string Prompt, ChatBotParameters cbParams, AIInferenceProfile profile)
         {
             try
             {
                 using (HttpClient client = new HttpClient())
                 {
-                    // Prepare the request data
+                    // Serialize the data to JSON
+                    profile.prompt = Prompt;
+                    profile.stopping_strings = new string[] { $"\n{cbParams.questionPrompt}" };
+
                     var requestData = new
                     {
                         prompt = Prompt,
-                        max_new_tokens = 700,
-                        preset = "None",
-                        do_sample = false,
-                        temperature = 0.1,
-                        top_p = .1,
-                        top_k = 40,
-                        typical_p = 1,
-                        epsilon_cutoff = 0,
-                        eta_cutoff = 0,
-                        tfs = 1,
-                        top_a = 0,
-                        repetition_penalty = 1.18,
-                        repetition_penalty_range = 0,
-                        min_length = 0,
-                        no_repeat_ngram_size = 0,
-                        num_beams = 1,
-                        penalty_alpha = 0,
-                        length_penalty = 1,
-                        early_stopping = false,
-                        mirostat_mode = 0,
-                        mirostat_tau = 5,
-                        mirostat_eta = .1,
-                        seed = -1,
-                        add_bos_token = true,
-                        truncation_length = 8192,
-                        ban_eos_token = false,
-                        skip_special_tokens = true,
-                        stopping_strings = new string[] { $"\n{cbParams.questionPrompt}" }
+                        max_new_tokens = profile.max_new_tokens,
+                        preset = profile.preset,
+                        do_sample = profile.do_sample,
+                        temperature = profile.temperature,
+                        top_p = profile.top_p,
+                        top_k = profile.top_k,
+                        typical_p = profile.typical_p,
+                        epsilon_cutoff = profile.epsilon_cutoff,
+                        eta_cutoff = profile.eta_cutoff,
+                        tfs = profile.tfs,
+                        top_a = profile.top_a,
+                        repetition_penalty = profile.repetition_penalty,
+                        repetition_penalty_range = profile.repetition_penalty_range,
+                        min_length = profile.min_length,
+                        no_repeat_ngram_size = profile.no_repeat_ngram_size,
+                        num_beams = profile.num_beams,
+                        penalty_alpha = profile.penalty_alpha,
+                        length_penalty = profile.length_penalty,
+                        early_stopping = profile.early_stopping,
+                        mirostat_mode = profile.mirostat_mode,
+                        mirostat_tau = profile.mirostat_tau,
+                        mirostat_eta = profile.mirostat_eta,
+                        seed = profile.seed,
+                        add_bos_token = profile.add_bos_token,
+                        truncation_length = profile.truncation_length,
+                        ban_eos_token = profile.ban_eos_token,
+                        skip_special_tokens = profile.skip_special_tokens,
+                        stopping_strings = new string[] { $"\n{cbParams.questionPrompt}", "Q: " }
                     };
 
-                    // Serialize the data to JSON
                     var jsonContent = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(requestData), System.Text.Encoding.UTF8, "application/json");
-
                     // Send the POST request to the API
                     client.Timeout = new TimeSpan(0, 3, 0);
                     HttpResponseMessage response = await client.PostAsync(cbParams.aiapiUrl, jsonContent);
@@ -228,9 +223,11 @@ namespace SojeeChat
             // Sample question
             string prompt2 = initialQuestion + "\nCLASSIFICATION:";
 
-            string initialText = (File.ReadAllText(Path.Join(AppDomain.CurrentDomain.BaseDirectory,"prompt_initial.txt")));
+            AIInferenceProfile initialPrompt = new AIInferenceProfile("initial");
+            initialPrompt.max_new_tokens = 8;
+
             // Get the response from the API
-            string response = await GetResponseFromApi(initialText + prompt2, cbParams);
+            string response = await GetResponseFromApi(cbParams.systemPrompt + initialPrompt.topicText + prompt2, cbParams, initialPrompt);
 
             string actualResponse = "";
 
@@ -263,9 +260,13 @@ namespace SojeeChat
             if (actualResponse.Contains(' '))
                 actualResponse = actualResponse.Split(' ')[0];
 
-            if (cbParams.dctTopics.ContainsKey(actualResponse.ToUpper()))
+            if (cbParams.topics.Contains(actualResponse.ToLower()))
             {
-                response2  = await GetResponseFromApi(cbParams.dctTopics[actualResponse.ToUpper()] + initialQuestion + $"\n{cbParams.answerPrompt}", cbParams);
+                AIInferenceProfile topicPrompt = new AIInferenceProfile(actualResponse.ToLower());
+                if (!string.IsNullOrEmpty(topicPrompt.topicText))
+                {
+                    response2 = await GetResponseFromApi(cbParams.systemPrompt + topicPrompt.topicText + initialQuestion + $"\n{cbParams.answerPrompt}", cbParams, topicPrompt);
+                }
             }
             else
                 return cbParams.emptyResponse;

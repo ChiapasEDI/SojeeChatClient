@@ -280,5 +280,8 @@ This will load the XML register from a file.
 50) sapi-XmlToFile -Filename (string, mandatory)
 This will save the XML register to a file.
 
+51) sapi-SegPoolToHKey
+This command will translate the loaded SegPool register to the HKey register.
+
 Q: Are there any SAPI commands that can help convert EDI to a DataTable?
 A: Yes.  The (sapi-FetchVar -Value 'FLAT_DT') command can return a DataTable object that represents a currently loaded Flat register.  This can be modified and then the sapi-SetFlat can store the results back to the Flat register.  Passing the value 'HKEY_DT' will return a named hashtable of DataTable objects.

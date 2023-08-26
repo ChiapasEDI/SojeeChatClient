@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="log-20230821.txt" />
     <None Remove="prompt_automation.txt" />
     <None Remove="prompt_business.txt" />
     <None Remove="prompt_initial.txt" />

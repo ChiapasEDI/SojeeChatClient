@@ -2,13 +2,14 @@
 @inject ChatbotClient.QueryProcessor queryProcessor
 <div class="mud-theme-info py-4 px-6 mx-4 rounded-xl">
     <MudText Align="Align.Left">
-        This is <b>Sojee</b>, Chiapas EDI's AI chatbot.  Please do not rely on the output for any purpose as it is prone to hallucinnation.
-        For clarification, reach out to us directly at <a href="mailto:support@chiapas-edi.org">support@chiapas-edi.org</a>, or copy your Email address in a question.  Please allow Sojee up to a minute for answers to your questions.<br />
+        This is <b>Sojee</b>, Chiapas EDI's AI chatbot.  Please do not rely on the output for any purpose as it is prone to hallucination.
+        For clarification, reach out to us directly at <a href="mailto:support@chiapas-edi.org">support@chiapas-edi.org</a>, or provide your Email address in a question.  Please allow Sojee up to a minute for answers to your questions.  If your Sojee doesn't answer your question, try phrasing it a different way.<br />
         <u>Some sample questions</u>:<br />
         1. What are the licensing costs for SERENEDI Package A?<br />
         2. What are the HIPAA specifications supported by SERENEDI?<br />
-        3. What is the syntax and usage of the SERENEDI SCORE script command sapi-AddMsg?<br />
-        4. What is an example SCORE script that converts EDI to XML?<br />
+        3. What are the two file-based triggers in SERENEDI?<br />
+        <u>Please note,</u> for the following topic, multiturn conversations are not supported - please reload the window for each individual question:<br />
+        4. Give me the syntax and usage of the SERENEDI cmdlet sapi-AddMsg.<br />
     </MudText>
 </div>
 
@@ -71,16 +72,17 @@
     public bool isProgressHidden = true;    
     public string inputPrompt = "";
     public string outputText = "";
-    ChatbotClient.Conversation convo = new ChatbotClient.Conversation();
+    ChatbotClient.Conversation convo =  new ChatbotClient.Conversation();
 
     private async Task SubmitClickedAsync(MouseEventArgs args)
     {
         isProgressHidden = false;
         convo.convoEntries.Add(DateTime.Now, (inputPrompt, ""));
-        convo._botParams = ChatBotParameters.LoadFromDisk();
+        convo._botParams = queryProcessor.cbParams;
         var task1 = queryProcessor.SubmitQuery(convo);
         convo = await task1;
         isProgressHidden = true;
+        inputPrompt = "";
     }
 
 }
