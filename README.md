@@ -31,3 +31,8 @@ First, we're going to modify the instructions at [https://github.com/oobabooga/t
 
 The WSL window should say "Loading TheBloke_OpenAssistant...actorder_True..."   This means you'll have to wait another five minutes for the model to load, and then http://0.0.0.0:5000/api should pop up.  This means the back-end inference engine is now ready for queries.
 
+14. Next, go into Visual Studio and clone this project: https://github.com/alittleteap0t/SojeeChatClient
+15. Open up the project and edit config.json so that the IP address at the end of the file matches your host IP address.
+16. Then, press F5 to run Sojee.
+
+
