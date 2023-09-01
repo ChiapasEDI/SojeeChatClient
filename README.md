@@ -1,6 +1,6 @@
 # SojeeChatClient
 
-This is Sojee, Chiapas EDI Technologies, Inc. AI front-end chatbot.  It relies on the text-generation-webui as an AI inference engine in order to answer questions.
+This is Sojee, Chiapas EDI Technologies, Inc. AI front-end chatbot.  It relies on the text-generation-webui as an AI inference engine in order to answer questions.  For a video that explains the business requirements behind Sojee and then goes step by step through installing it and customizing it, visit https://youtu.be/pjNjdcRf2TE
 
 These instructions are geared toward the following development environment:
 - Windows 10/11
@@ -42,4 +42,4 @@ To customize Sojee with your own corpus, you'll need to follow these steps:
 8. Also make sure that each of your prompt text files are: 1) Not saved in Unicode and 2) Are set to "Copy Always" in the project
 9. After these changes, running the project should let you query your topic text files.  The default Publish profile in the project is meant to save a Linux executable - copy the publish folder contents to a Linux VM, chmod +x to the executable, and run it with ./SojeeChat --urls (URL to serve the Sojee Chatbot).
 
-For questions, reach out to Richard @ richard@chiapas-edi.org.
+For questions, reach out to Richard @ richard@chiapas-edi.org.  
